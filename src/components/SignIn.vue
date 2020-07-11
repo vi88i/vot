@@ -88,7 +88,7 @@ export default {
         .then((res) => {
           this.error = Object.assign({}, res);
           if (res.auth === true)
-            this.$router.push({ name : 'dashboard' });      
+            this.$router.push({ name : 'dashboard', params : { user : this.user.name.split(' ').join('_') } });      
         })
         .catch((err) => {
           console.log(err);

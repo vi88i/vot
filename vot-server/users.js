@@ -6,6 +6,10 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const redis = require('redis');
+const session = require('express-session');
+const redisStore = require('connect-redis')(session);
+const redisClient = redis.createClient();
 
 const { signInSchema, signUpSchema } = require('./json-schema'); 
 const { user } = require('./models');
@@ -14,6 +18,12 @@ app.use(cors());
 app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended : true }));
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  store: new redisStore({ host: 'localhost', port: 6379, client: redisClient }),
+  saveUninitialized: false,
+  resave: false
+}));
 
 app.listen(process.env.PORT, (err) => {
   if (err)
