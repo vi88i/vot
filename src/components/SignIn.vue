@@ -1,6 +1,21 @@
 <template>
   <v-app>
     <v-container class="fill-height" fluid>
+        <v-row v-if="error.error == true" class="justify-center" dense>
+          <v-col cols="5">
+            <v-card             
+              color="red"
+              dark
+            >
+              <v-card-title>
+                <span class="headline">Error</span>
+              </v-card-title>
+              <v-card-text>
+                {{ error.msg }}
+              </v-card-text>  
+            </v-card>           
+          </v-col>
+        </v-row>      
         <v-row class="justify-center" dense>
           <v-col cols="5">
             <v-card             
@@ -13,11 +28,10 @@
               <v-card-text>
                 <v-container>
                   <v-row>
-                    <v-col cols="12" sm="6" md="12">
+                    <v-col cols="12">
                       <v-text-field 
                         v-model="user.name" 
                         label="Name"
-                        single-line="true"
                         color="white"
                         required
                       >
@@ -25,12 +39,11 @@
                     </v-col>
                   </v-row>  
                   <v-row>
-                    <v-col cols="12" sm="6" md="12">
+                    <v-col cols="12">
                       <v-text-field 
                         v-model="user.password" 
                         :type="'password'" 
                         label="Password" 
-                        single-line="true"
                         color="white"
                         required
                       >
@@ -58,11 +71,28 @@ export default {
         name: null,
         password: null,
       },
+      error: {
+        error : false,
+        msg: null,
+      }
     }
   },
   methods: {
     handleSubmit() {
-      //
+      fetch('http://localhost:3000/users/sign-in', {
+        method: 'POST',
+        headers: { 'Content-type': 'application/json; charset=utf-8' },
+        body: JSON.stringify(this.user),
+      })
+        .then((res) => res.json())
+        .then((res) => {
+          this.error = Object.assign({}, res);
+          if (res.auth === true)
+            this.$router.push({ name : 'dashboard' });      
+        })
+        .catch((err) => {
+          console.log(err);
+        });      
     }
   }
 }

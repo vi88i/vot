@@ -1,6 +1,36 @@
 <template>
   <v-app>
     <v-container class="fill-height" fluid>
+        <v-row v-if="error.error == true" class="justify-center" dense>
+          <v-col cols="5">
+            <v-card             
+              color="red"
+              dark
+            >
+              <v-card-title>
+                <span class="headline">Error</span>
+              </v-card-title>
+              <v-card-text>
+                {{ error.msg }}
+              </v-card-text>  
+            </v-card>           
+          </v-col>
+        </v-row>
+        <v-row  v-else-if="error.error == false" class="justify-center" dense>
+          <v-col cols="5">
+            <v-card             
+              color="green"
+              dark
+            >
+              <v-card-title>
+                <span class="headline">Success</span>
+              </v-card-title>
+              <v-card-actions class="justify-center">
+                <v-btn @click="$router.push({ name : 'sign-in' })" text>Sign in</v-btn>
+              </v-card-actions>
+            </v-card>           
+          </v-col>
+        </v-row>              
         <v-row class="justify-center" dense>
           <v-col cols="5">
             <v-card             
@@ -13,36 +43,36 @@
               <v-card-text>
                 <v-container>
                   <v-row>
-                    <v-col cols="12" sm="6" md="12">
+                    <v-col cols="12">
                       <v-text-field 
                         v-model="user.name" 
                         label="Name"
-                        single-line="true"
-                        color="white" 
+                        color="white"
+                        hint="only 2-20 alphanumeric characters allowed" 
                         required
                       >
                       </v-text-field>
                     </v-col>
                   </v-row>  
                   <v-row>
-                    <v-col cols="12" sm="6" md="12">
+                    <v-col cols="12">
                       <v-text-field 
                         v-model="user.email" 
                         label="E-mail"
-                        single-line="true"
-                        color="white" 
+                        color="white"
+                        hint="only .com and .net domains allowed" 
                         required
                       >
                       </v-text-field>
                     </v-col>
                   </v-row>
                   <v-row>
-                    <v-col cols="12" sm="6" md="12">
+                    <v-col cols="12">
                       <v-text-field 
                         v-model="user.password" 
                         label="Password"
-                        single-line="true"
                         color="white"
+                        hint="only 8-20 alphanumeric characters allowed"
                         :type="'password'"
                         required
                       >
@@ -50,12 +80,12 @@
                     </v-col>
                   </v-row>
                   <v-row>
-                    <v-col cols="12" sm="6" md="12">
+                    <v-col cols="12">
                       <v-text-field 
                         v-model="user.re_password" 
                         label="Re-enter password"
-                        single-line="true"
                         color="white"
+                        hint="should match the password"
                         :type="'password'" 
                         required
                       >
@@ -65,7 +95,7 @@
                 </v-container>
               </v-card-text>
               <v-card-actions class="justify-center">
-                <v-btn text>Sign up</v-btn>
+                <v-btn @click="handleSubmit()" text>Sign up</v-btn>
               </v-card-actions>
             </v-card>           
           </v-col>
@@ -84,17 +114,27 @@ export default {
         email: null,
         password: null,
         re_password: null,
-      }
-    }
-  },
-  computed: {
-    isPasswordConfirmed: () => {
-      return this.user.re_password && this.user.password ? this.user.password === this.user.re_password ? 'white' : 'red' : 'white'; 
+      },
+      error: {
+        msg: null,
+        error: null,
+      },
     }
   },
   methods: {
     handleSubmit() {
-      //
+      fetch('http://localhost:3000/users/sign-up', {
+        method: 'POST',
+        headers: { 'Content-type': 'application/json; charset=utf-8' },
+        body: JSON.stringify(this.user),
+      })
+        .then((res) => res.json())
+        .then((res) => {
+          this.error = Object.assign({}, res);      
+        })
+        .catch((err) => {
+          console.log(err);
+        });      
     }
   },
 }

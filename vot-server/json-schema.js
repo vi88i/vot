@@ -2,7 +2,7 @@ const Joi = require('@hapi/joi');
 
 const signUpSchema = Joi.object({
   name: Joi.string()
-    .pattern(/^[a-zA-Z ]{3,20}$/)
+    .pattern(/^[a-zA-Z ]{2,20}$/)
     .required(),
   email: Joi.string()
     .email({ minDomainSegments: 2, tlds: { allow: ['com', 'net'] }})
@@ -20,7 +20,7 @@ const signUpSchema = Joi.object({
 
 const signInSchema = Joi.object({
   name: Joi.string()
-    .pattern(/^[a-zA-Z ]{3,20}$/)
+    .pattern(/^[a-zA-Z ]{2,20}$/)
     .required(),
   password: Joi.string()
     .alphanum()

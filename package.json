@@ -21,6 +21,7 @@
     "express": "^4.17.1",
     "express-session": "^1.17.1",
     "mongoose": "^5.9.22",
+    "node-fetch": "^2.6.0",
     "redis-server": "^1.2.2",
     "vue": "^2.6.11",
     "vue-router": "^3.2.0",
