@@ -81,6 +81,7 @@ export default {
     handleSubmit() {
       fetch('http://localhost:3000/users/sign-in', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-type': 'application/json; charset=utf-8' },
         body: JSON.stringify(this.user),
       })

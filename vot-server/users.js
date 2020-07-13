@@ -7,24 +7,34 @@ const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const redis = require('redis');
-const session = require('express-session');
-const redisStore = require('connect-redis')(session);
-const redisClient = redis.createClient();
+const crypto = require('crypto-random-string');
+
+const redisClient = redis.createClient({
+  host: process.env.REDIS_HOST,
+  port: process.env.REDIS_PORT,
+  db: process.env.REDIS_DB,
+});
+redisClient.on('error', (err) => {
+  console.log('Redis error: ', err);
+});
 
 const { signInSchema, signUpSchema } = require('./json-schema'); 
 const { user } = require('./models');
 
-app.use(cors());
+/* 
+  * since we are dealing with cookies across cross-site domains (localhost:8080, localhost:3000), cors won't work with "*" origin header,
+  * so we need to explicity state the origin through which credentials are exchanged. In fetch API, credentials='something' is used to 
+  * decide whether to send user credentials during requests. By default, credentials='same-origin' which means user credentials are sent
+  * only when both server domain (to which we request) and domain in browser match (URL). Since Vue app and node is running on different domains
+  * i.e ::8080 and ::3000, user credentials are not sent as the domains dont match. So we need to explicitly set credentials='include', so that
+  * cookies responses and exchange of credential is not blocked during CORS. This setting should be applied for any fetch API request made from 
+  * one domain to another. And the server should also be configured to handle CORS safely.
+*/
+app.use(cors({ credentials: true, origin: 'http://localhost:8080' }));
 app.use(cookieParser());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended : true }));
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  store: new redisStore({ host: 'localhost', port: 6379, client: redisClient }),
-  saveUninitialized: false,
-  resave: false
-}));
-
+app.use(bodyParser.urlencoded({ extended : true }));	
+  
 app.listen(process.env.PORT, (err) => {
   if (err)
    throw err;
@@ -96,11 +106,27 @@ app.post('/users/sign-in', async (req, res) => {
         } else if (result === false) {
           res.status(400).json({ error : true, auth : false, msg : 'Invalid username or password' });
         } else {
-          res.status(200).json({ error : false, auth : true, msg : 'Invalid username or password' });
+          const sessionID = crypto({ length: 120 });
+          res
+            .cookie('SID', sessionID, {
+              maxAge: 60 * 60 * 24 * 1000,
+              httpOnly: true,
+              secure: false,
+              sameSite: true,
+              domain: 'localhost',
+            })
+            .status(200)
+            .json({ error : false, auth : true });
         }
       });
     } else {
       res.status(400).json({ error : true, auth : false, msg : 'Invalid username or password' });
     }
   }
+});
+
+app.post('/users/isLoggedIn', (req, res) => {
+  const { SID: sessionID } = req.cookies;
+  console.log(sessionID);
+  res.status(200).json({ error : false });
 });
