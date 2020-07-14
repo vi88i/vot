@@ -26,5 +26,23 @@
 <script>
 export default {
   name: 'Home',
+  mounted() {
+    fetch('http://localhost:3000/users/isLoggedIn', {
+      method: 'POST',
+      credentials: 'include', // Important: If default value 'same-origin' is used, then cookies are not sent.
+      headers: { 
+        'Content-type': 'application/json; charset=utf-8',
+        'Cache': 'no-cache', 
+      },
+    })
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.auth === true)
+          this.$router.push({ name: 'dashboard', params: { user: res.name.split(' ').join('_') } });    
+      })
+      .catch((err) => {
+        console.log(err);
+      });    
+  },
 }
 </script>

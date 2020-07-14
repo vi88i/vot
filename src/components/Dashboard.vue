@@ -16,9 +16,27 @@
 <script>
 export default {
   name: 'Dashboard',
+  mounted() {
+    fetch('http://localhost:3000/users/isLoggedIn', {
+      method: 'POST',
+      credentials: 'include', // Important: If default value 'same-origin' is used, then cookies are not sent.
+      headers: { 
+        'Content-type': 'application/json; charset=utf-8',
+        'Cache': 'no-cache', 
+      },
+    })
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.auth === false)
+          this.$router.push({ name: 'home' });    
+      })
+      .catch((err) => {
+        console.log(err);
+      });    
+  },
   methods: {
     logout() {
-      fetch('http://localhost:3000/users/isLoggedIn', {
+      fetch('http://localhost:3000/users/logout', {
         method: 'POST',
         credentials: 'include', // Important: If default value 'same-origin' is used, then cookies are not sent.
         headers: { 
@@ -28,7 +46,8 @@ export default {
       })
         .then((res) => res.json())
         .then((res) => {
-          console.log(res);    
+          if (res.error === false)
+            this.$router.push({ name: 'home' });    
         })
         .catch((err) => {
           console.log(err);

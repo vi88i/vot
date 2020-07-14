@@ -9,18 +9,27 @@ const bcrypt = require('bcrypt');
 const redis = require('redis');
 const crypto = require('crypto-random-string');
 
-const redisClient = redis.createClient({
+const redisStore = redis.createClient({
   host: process.env.REDIS_HOST,
   port: process.env.REDIS_PORT,
   db: process.env.REDIS_DB,
 });
-redisClient.on('error', (err) => {
+redisStore.on('error', (err) => {
+  console.log('Redis error: ', err);
+});
+
+const redisBlacklist = redis.createClient({
+  host: process.env.REDIS_HOST,
+  port: process.env.REDIS_PORT,
+  db: process.env.REDIS_BLACKLIST_DB,
+});
+redisBlacklist.on('error', (err) => {
   console.log('Redis error: ', err);
 });
 
 const { signInSchema, signUpSchema } = require('./json-schema'); 
 const { user } = require('./models');
-
+const { validateSID } = require('./utils/validateSID');
 /* 
   * since we are dealing with cookies across cross-site domains (localhost:8080, localhost:3000), cors won't work with "*" origin header,
   * so we need to explicity state the origin through which credentials are exchanged. In fetch API, credentials='something' is used to 
@@ -34,7 +43,16 @@ app.use(cors({ credentials: true, origin: 'http://localhost:8080' }));
 app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended : true }));	
-  
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    if (req.sessionID) {
+      const session_variables = Object.assign({}, req.session);
+      redisStore.set(req.sessionID, JSON.stringify(session_variables), 'PX', req.session.expiresIn - Date.now());
+    }
+  });
+  next();
+});
+
 app.listen(process.env.PORT, (err) => {
   if (err)
    throw err;
@@ -52,6 +70,13 @@ mongoose.connect(process.env.MONGODB_URL, {
   .catch((err) => {
     console.log(err);
 });
+
+// release resource before exit
+// process.on('beforeExit', () => {
+//   redisStore.quit();
+//   redisBlacklist.quit();
+//   mongoose.connection.close();
+// });
 
 app.post('/users/sign-up', async (req, res) => {
   const { error } = signUpSchema.validate(req.body);
@@ -107,6 +132,12 @@ app.post('/users/sign-in', async (req, res) => {
           res.status(400).json({ error : true, auth : false, msg : 'Invalid username or password' });
         } else {
           const sessionID = crypto({ length: 120 });
+          const session_variables = {
+            name: 'Vighnesh Nayak S',
+            isAuthenticated: true,
+            expiresIn: Date.now() + 60 * 60 * 24 * 1000,
+          };
+          redisStore.set(sessionID, JSON.stringify(session_variables), 'PX', 60 * 60 * 24 * 1000);
           res
             .cookie('SID', sessionID, {
               maxAge: 60 * 60 * 24 * 1000,
@@ -125,8 +156,22 @@ app.post('/users/sign-in', async (req, res) => {
   }
 });
 
-app.post('/users/isLoggedIn', (req, res) => {
-  const { SID: sessionID } = req.cookies;
-  console.log(sessionID);
-  res.status(200).json({ error : false });
+app.post('/users/isLoggedIn', validateSID, (req, res) => {
+  if (req.session.refresh) {
+    req.session.refresh += 1;
+  } else {
+    req.session.refresh = 0;
+  }
+  res.status(200).json({ error: false, auth: true });
+});
+
+app.post('/users/logout', validateSID, (req, res) => {
+  const ttl = req.session.expiresIn - Date.now();
+  if (ttl > 0) {
+    redisBlacklist.set(req.sessionID, '1', 'PX', ttl);
+  }
+  res
+    .clearCookie('SID', { path: '/' })
+    .status(200)
+    .json({ error: false });
 });
