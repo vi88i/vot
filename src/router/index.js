@@ -4,6 +4,7 @@ import Home from '@/components/Home.vue'
 import SignIn from '@/components/SignIn.vue'
 import SignUp from '@/components/SignUp.vue'
 import Dashboard from '@/components/Dashboard.vue'
+import PollView from '@/components/PollView.vue'
 
 Vue.use(VueRouter)
 
@@ -27,6 +28,11 @@ const routes = [
     path: '/dashboard/:user',
     name: 'dashboard',
     component: Dashboard,
+  },
+  {
+    path: '/view/:id',
+    name: 'view',
+    component: PollView,
   }    
 ];
 

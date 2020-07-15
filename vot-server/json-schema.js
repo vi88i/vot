@@ -28,4 +28,22 @@ const signInSchema = Joi.object({
     .required(),
 });
 
-module.exports = { signUpSchema, signInSchema };
+const pollSchema = Joi.object({
+  question: Joi.string()
+    .pattern(/^[0-9a-zA-Z? ]{3,250}$/)
+    .required(),
+  options: Joi.array()
+    .min(2)
+    .items(
+      Joi.object({
+        text: Joi.string()
+          .pattern(/^[0-9a-zA-Z? ]{1,250}$/)
+          .required(),
+        index: Joi.number()
+          .required(),
+      })
+    )
+    .required(),
+});
+
+module.exports = { signUpSchema, signInSchema, pollSchema };

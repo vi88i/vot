@@ -27,8 +27,8 @@ redisBlacklist.on('error', (err) => {
   console.log('Redis error: ', err);
 });
 
-const { signInSchema, signUpSchema } = require('./json-schema'); 
-const { user } = require('./models');
+const { signInSchema, signUpSchema, pollSchema } = require('./json-schema'); 
+const { user, poll } = require('./models');
 const { validateSID } = require('./utils/validateSID');
 /* 
   * since we are dealing with cookies across cross-site domains (localhost:8080, localhost:3000), cors won't work with "*" origin header,
@@ -162,7 +162,7 @@ app.post('/users/isLoggedIn', validateSID, (req, res) => {
   } else {
     req.session.refresh = 0;
   }
-  res.status(200).json({ error: false, auth: true });
+  res.status(200).json({ error: false, auth: true, name: req.session.name });
 });
 
 app.post('/users/logout', validateSID, (req, res) => {
@@ -174,4 +174,63 @@ app.post('/users/logout', validateSID, (req, res) => {
     .clearCookie('SID', { path: '/' })
     .status(200)
     .json({ error: false });
+});
+
+app.post('/users/submitPoll', validateSID, async (req, res) => {
+  const { error } = pollSchema.validate(req.body);
+  if (error) {
+    res.status(400).json({ error: true, auth: true, msg: 'Invalid input' });
+    console.log(error);
+  } else {
+    const anotherQuestion = await poll.findOne({ pollster: req.session.name, question: req.body.question });
+    if (anotherQuestion) {
+      res.status(200).json({ error: true, auth: true, msg: 'Question already asked!' });
+    } else {
+      const newPoll = new poll({ pollster: req.session.name, ...req.body });
+      newPoll.save((err) => {
+        if (err) {
+          res.status(500).json({ error: true, auth: true, msg: 'Something went wrong!' });
+          console.log(err);
+        } else {  
+          res.status(200).json({ error: false, auth: true });
+        }
+      });
+    }
+  }
+});
+
+app.post('/users/listAllPolls', validateSID, async (req, res) => {
+  const allPolls = await poll.find({ pollster: req.session.name });
+  let data = allPolls.map((elem) => {
+    return {
+      question: elem.question,
+      id: elem._id,
+    }
+  });
+  res.status(200).json({ error: false, auth: true, polls: data });
+});
+
+app.post('/users/deletePoll', validateSID, (req, res) => {
+  poll.deleteOne({ pollster: req.session.name, question: req.body.question }, async (err) => {
+    if (err) {
+      res.status(500).json({ error: true, auth: true });
+    } else {
+      const allPolls = await poll.find({ pollster: req.session.name });
+      let data = allPolls.map((elem) => {
+        return {
+          question: elem.question,
+        }
+      });
+      res.status(200).json({ error: false, auth: true, polls: data });
+    }
+  });
+});
+
+app.post('/users/viewPoll', validateSID, async (req, res) => {
+  const reqPoll = await poll.findOne({ pollster: req.session.name, _id: req.body.id });
+  res.status(200).json({ error: false, auth: true, poll: {
+      question: reqPoll.question,
+      options: reqPoll.options,
+    } 
+  });
 });

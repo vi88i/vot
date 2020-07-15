@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 const { assert } = require('chai');
-const { signUpSchema, signInSchema } = require('../json-schema');
+const { signUpSchema, signInSchema, pollSchema } = require('../json-schema');
 
 describe('JSON input validation', () => {
   describe('Sign up', () => {
@@ -82,4 +82,31 @@ describe('JSON input validation', () => {
       done();
     });                
   });
+
+  describe('Poll submission', () => {
+    it('should pass', (done) => {
+      const { error } = pollSchema.validate({ 
+        question: 'Who am I?',
+        options: [{ text: '123', index: 0 }, { text: '124', index: 1 }], 
+      });
+      assert.isUndefined(error, error);
+      done();
+    });
+    it("should fail, js injected", (done) => {
+      const { error } = pollSchema.validate({ 
+        question: 'Who am I<script>alert(document.cookie)</script>?',
+        options: [{ text: '123', index: 0 }, { text: '124', index: 1 }], 
+      });
+      assert.isDefined(error, 'Failure case passed');
+      done();
+    });
+    it("should fail, min elements is less than 2", (done) => {
+      const { error } = pollSchema.validate({ 
+        question: 'Who am I?',
+        options: [{ text: '123', index: 0 }], 
+      });
+      assert.isDefined(error, 'Failure case passed');
+      done();
+    });                        
+  });  
 });

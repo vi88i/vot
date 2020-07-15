@@ -1,8 +1,15 @@
 <template>
   <v-app>
-    <v-container class="fill-height" fluid>
+    <v-container class="fill-height" fluid>   
       <v-row class="justify-center" dense>
-        <v-col cols="5">
+        <v-progress-circular
+          v-if="loader"
+          :size="70"
+          :width="7"
+          color="#593780"
+          indeterminate
+        ></v-progress-circular>        
+        <v-col v-if="!loader" cols="5">
           <v-card
             color="cyan"
             dark
@@ -26,7 +33,13 @@
 <script>
 export default {
   name: 'Home',
+  data() {
+    return {
+      loader: false,
+    }
+  },
   mounted() {
+    this.loader = true;
     fetch('http://localhost:3000/users/isLoggedIn', {
       method: 'POST',
       credentials: 'include', // Important: If default value 'same-origin' is used, then cookies are not sent.
@@ -37,6 +50,7 @@ export default {
     })
       .then((res) => res.json())
       .then((res) => {
+        this.loader = false;
         if (res.auth === true)
           this.$router.push({ name: 'dashboard', params: { user: res.name.split(' ').join('_') } });    
       })

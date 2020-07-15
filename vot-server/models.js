@@ -1,5 +1,4 @@
 const { Schema, model } = require('mongoose');
-const bcrypt = require('bcrypt');
 
 const userSchema = new Schema({
   name: {
@@ -18,10 +17,36 @@ const userSchema = new Schema({
     trim: true,
     required: true,
   },
-}, {
-  collection: 'poll_users',
+});
+
+const pollOptionSchema = new Schema({
+  text: {
+    type: 'String',
+    trim: true,
+    required: true,
+  },
+  index: {
+    type: 'Number',
+    required: true,
+  }
+});
+
+const pollSchema = new Schema({
+  pollster: {
+    type: 'String',
+    trim: true,
+    index: true,
+    required: true, 
+  },
+  question: {
+    type: 'String',
+    trim: true,
+    required: true,
+  },
+  options: [pollOptionSchema],
 });
 
 const user = model('user', userSchema);
+const poll = model('poll', pollSchema);
 
-module.exports = { user };
+module.exports = { user, poll };

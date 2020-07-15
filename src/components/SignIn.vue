@@ -1,8 +1,16 @@
 <template>
   <v-app>
     <v-container class="fill-height" fluid>
-        <v-row v-if="error.error == true" class="justify-center" dense>
-          <v-col cols="5">
+        <v-row v-if="loader" class="justify-center" dense>
+          <v-progress-circular
+            :size="70"
+            :width="7"
+            color="#593780"
+            indeterminate
+          ></v-progress-circular>     
+        </v-row> 
+        <v-row v-if="error.error == true" class="justify-center" dense>          
+          <v-col v-if="!loader" cols="5">
             <v-card             
               color="red"
               dark
@@ -16,7 +24,7 @@
             </v-card>           
           </v-col>
         </v-row>      
-        <v-row class="justify-center" dense>
+        <v-row v-if="!loader" class="justify-center" dense>
           <v-col cols="5">
             <v-card             
               color="cyan"
@@ -67,6 +75,7 @@ export default {
   name: 'SignIn',
   data() {
     return {
+      loader: false,
       user: {
         name: null,
         password: null,
@@ -79,6 +88,7 @@ export default {
   },
   methods: {
     handleSubmit() {
+      this.loader = true;
       fetch('http://localhost:3000/users/sign-in', {
         method: 'POST',
         credentials: 'include',
@@ -87,6 +97,7 @@ export default {
       })
         .then((res) => res.json())
         .then((res) => {
+          this.loader = false;
           this.error = Object.assign({}, res);
           if (res.auth === true)
             this.$router.push({ name : 'dashboard', params : { user : this.user.name.split(' ').join('_') } });      
