@@ -46,7 +46,7 @@
                   <v-row>
                     <v-col cols="12">
                       <v-text-field 
-                        v-model="poll.question" 
+                        v-model="question" 
                         label="Question"
                         required
                       >
@@ -54,11 +54,11 @@
                     </v-col>
                   </v-row>
 
-                  <v-list v-if="poll.options.length > 0" color="#1f006e">
+                  <v-list v-if="options.length > 0" color="#1f006e">
                     <v-list-item-group>
                       <v-list-item
-                        v-for="option in poll.options"
-                        :key="poll.options[option.index].index + save_click"
+                        v-for="option in options"
+                        :key="options[option.index].index"
                       >
                         <v-list-item-content aria-disabled>
                           <v-list-item-title>{{ option.index + 1 }}. {{ option.text }}</v-list-item-title>
@@ -111,7 +111,7 @@
       </v-row>
 
       <v-row v-else class="justify-center" dense>
-        <v-col v-for="p in polls" cols="4" :key="p.question">
+        <v-col v-for="p in polls" cols="4" :key="p.id">
           <v-card
             color="#593780"
             dark
@@ -122,10 +122,36 @@
             <v-divider></v-divider>
             <v-card-actions class="justify-center">
               <v-btn @click="$router.push({ name: 'view', params : { id : p.id }})" text>View</v-btn>
-              <v-btn @click="handleDelete(p.question)" text>Delete</v-btn>
+              <v-btn @click="loadShareLink(p.id)" text>Share</v-btn>
+              <v-btn @click="handleDelete(p.id)" text>Delete</v-btn>
             </v-card-actions>
           </v-card>
         </v-col>
+        <v-dialog v-model="share_dialog" persistent max-width="600px">
+          <v-card>
+            <v-card-title>
+              <span class="headline">Share poll link</span>
+            </v-card-title>
+            <v-card-text>
+              <v-container>
+                <v-row>
+                  <v-col cols="16">
+                    <v-text-field  
+                      v-text="'http://localhost:8080/cast/'+question_id"
+                      aria-selected
+                      aria-readonly
+                    >                            
+                    </v-text-field>
+                  </v-col>
+                </v-row>                              
+              </v-container>
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="blue darken-1" text @click="share_dialog = false">Close</v-btn>
+            </v-card-actions>                    
+          </v-card>
+        </v-dialog>        
       </v-row>      
     </v-container>      
 
@@ -150,22 +176,16 @@ export default {
     return {
       delete_icon: 'mdi-delete-circle',
       poll_dialog: false,
-      option_dialog: false,
+      share_dialog: false,
+      question_id: '',
       option_text: '',
       loader: false,
       polls: [],
-      save_click: 0,
+      options: [],
+      question: '',
       error: {
         error: false,
         msg: '',
-      },
-      default_poll: {
-        question: '',
-        options: [],
-      },
-      poll: {
-        question: '',
-        options: [],
       },
     }
   },
@@ -181,7 +201,7 @@ export default {
     })
       .then((res) => res.json())
       .then((res) => {
-        if (res.auth === false) {
+        if (res.auth === false || res.error === true) {
           this.$router.push({ name: 'home' });
         } else {
           this.fetchPolls();
@@ -210,7 +230,7 @@ export default {
           console.log(err);
         });      
     },
-    handleDelete(q) {
+    handleDelete(qid) {
       this.loader = true;
       fetch('http://localhost:3000/users/deletePoll', {
         method: 'POST',
@@ -219,24 +239,33 @@ export default {
           'Content-type': 'application/json; charset=utf-8',
           'Cache': 'no-cache', 
         },
-        body: JSON.stringify({ question: q })
+        body: JSON.stringify({ id: qid })
       })
         .then((res) => res.json())
         .then((res) => {
           this.loader = false;
-          this.polls = res.polls;
+          if (res.error == false) {
+            this.polls = this.polls.filter((elem) => {
+              return elem.id !== qid;
+            });
+          }
         })
         .catch((err) => {
           console.log(err);
         });      
     },
+    loadShareLink(qid) {
+      this.question_id = qid;
+      this.share_dialog = true; 
+    },
     handleClose() {
       this.poll_dialog = false;
       this.error = Object.assign({}, { error : false });
-      this.poll = Object.assign({}, this.default_poll);
+      this.question = '';
+      this.options = [];
     },
     handleSave() {
-      let data = { ...this.poll };
+      let data = { question: this.question, options: this.options };
       if (data.question.length === 0) {
         this.error.error = true;
         this.error.msg = 'Question field is required';
@@ -261,7 +290,6 @@ export default {
               this.$router.push({ name: 'home' });
             } else if (res.error === false) {
               this.handleClose();
-              this.save_click = this.save_click + 1;
               this.fetchPolls();
             } else if (res.error === true) {
               this.error = Object.assign({}, res); 
@@ -274,21 +302,21 @@ export default {
     },
     addOption() {
       let shouldUpdate = true;
-      this.poll.options.forEach((elem) => {
+      this.options.forEach((elem) => {
         if (elem.text === this.option_text)
           shouldUpdate = false;
       });
       if (shouldUpdate === true) {
-        this.poll.options.push({
+        this.options.push({
           text: this.option_text.trim(),
-          index: this.poll.options.length,
+          index: this.options.length,
         });
       }
       this.option_text = '';
     },
     removeOption(idx) {
-      this.poll.options.splice(idx, 1);
-      this.poll.options = this.poll.options.map((elem) => {
+      this.options.splice(idx, 1);
+      this.options = this.options.map((elem) => {
         elem.index = elem.index > idx ? elem.index - 1 : elem.index;
         return elem;
       });

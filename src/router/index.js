@@ -5,6 +5,8 @@ import SignIn from '@/components/SignIn.vue'
 import SignUp from '@/components/SignUp.vue'
 import Dashboard from '@/components/Dashboard.vue'
 import PollView from '@/components/PollView.vue'
+import CastPoll from '@/components/CastPoll.vue'
+import ErrorPage from '@/components/ErrorPage.vue'
 
 Vue.use(VueRouter)
 
@@ -33,7 +35,17 @@ const routes = [
     path: '/view/:id',
     name: 'view',
     component: PollView,
-  }    
+  },
+  {
+    path: '/cast/:id',
+    name: 'poll',
+    component: CastPoll,
+  },      
+  {
+    path: '/error',
+    name: 'error',
+    component: ErrorPage,
+  },
 ];
 
 const router = new VueRouter({

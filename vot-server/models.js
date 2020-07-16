@@ -31,6 +31,19 @@ const pollOptionSchema = new Schema({
   }
 });
 
+const voteSchema = new Schema({
+  voter_id: {
+    type: 'String',
+    trim: true,
+    required: true,
+  },
+  selected: {
+    type: 'String',
+    trim: true,
+    required: true,
+  }
+});
+
 const pollSchema = new Schema({
   pollster: {
     type: 'String',
@@ -44,6 +57,7 @@ const pollSchema = new Schema({
     required: true,
   },
   options: [pollOptionSchema],
+  ballot: [voteSchema],
 });
 
 const user = model('user', userSchema);

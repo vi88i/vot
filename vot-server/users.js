@@ -186,7 +186,7 @@ app.post('/users/submitPoll', validateSID, async (req, res) => {
     if (anotherQuestion) {
       res.status(200).json({ error: true, auth: true, msg: 'Question already asked!' });
     } else {
-      const newPoll = new poll({ pollster: req.session.name, ...req.body });
+      const newPoll = new poll({ pollster: req.session.name, ...req.body, ballot: [] });
       newPoll.save((err) => {
         if (err) {
           res.status(500).json({ error: true, auth: true, msg: 'Something went wrong!' });
@@ -211,7 +211,7 @@ app.post('/users/listAllPolls', validateSID, async (req, res) => {
 });
 
 app.post('/users/deletePoll', validateSID, (req, res) => {
-  poll.deleteOne({ pollster: req.session.name, question: req.body.question }, async (err) => {
+  poll.deleteOne({ pollster: req.session.name, _id: req.body.id }, async (err) => {
     if (err) {
       res.status(500).json({ error: true, auth: true });
     } else {
@@ -219,6 +219,7 @@ app.post('/users/deletePoll', validateSID, (req, res) => {
       let data = allPolls.map((elem) => {
         return {
           question: elem.question,
+          id: elem._id,
         }
       });
       res.status(200).json({ error: false, auth: true, polls: data });
@@ -228,9 +229,92 @@ app.post('/users/deletePoll', validateSID, (req, res) => {
 
 app.post('/users/viewPoll', validateSID, async (req, res) => {
   const reqPoll = await poll.findOne({ pollster: req.session.name, _id: req.body.id });
-  res.status(200).json({ error: false, auth: true, poll: {
+  if (reqPoll) {
+    let result = {
       question: reqPoll.question,
-      options: reqPoll.options,
-    } 
+      data: {},
+      t: 0,
+    };
+    reqPoll.options.forEach((elem) => {
+      result.data[elem.text] = {
+        votes: 0,
+        vote_percent: 0,
+      };
+    });
+    reqPoll.ballot.forEach((elem) => {
+      result.t = result.t + 1; 
+      result.data[elem.selected].votes = result.data[elem.selected].votes + 1; 
+    });
+    reqPoll.options.forEach((elem) => {
+      let percent = (100*result.data[elem.text].votes)/result.t;
+      result.data[elem.text].vote_percent = percent.toFixed(2);
+    });
+    res.status(200).json({ error: false, result: result });
+  } else {
+    res.status(200).json({ error: true });
+  }
+});
+
+app.post('/loadPoll', async (req, res) => {
+  const reqPoll = await poll.findOne({ _id: req.body.id });
+  if (reqPoll) {
+    res.status(200).json({ 
+      error: false, 
+      poll: {
+        pollster: reqPoll.pollster,
+        question: reqPoll.question,
+        options: reqPoll.options,
+      }, 
+    });
+  } else {
+    res.status(200).json({ error: true });
+  }
+});
+
+app.post('/castPoll', async (req, res) => {
+  const { voter_id, id, selected } = req.body;
+  const reqPoll = await poll.findOne({ 
+    _id: id,
+    'ballot.voter_id': { '$nin': voter_id },
   });
+  if (reqPoll) {
+    let validOption = false;
+    // array methods are blocking, so this is fine
+    reqPoll.options.forEach((elem) => {
+      validOption = validOption || (elem.text === selected);
+    });
+    if (validOption) {
+      reqPoll.ballot.push({ voter_id: voter_id, selected: selected });
+      reqPoll.save((err) => {
+        if (err) {
+          res.status(500).json({ error: true });
+          // console.log(err);
+        } else {
+          let result = {
+            data: {},
+            t: 0,
+          };
+          reqPoll.options.forEach((elem) => {
+            result.data[elem.text] = {
+              votes: 0,
+              vote_percent: 0,
+            };
+          });
+          reqPoll.ballot.forEach((elem) => {
+            result.t = result.t + 1; 
+            result.data[elem.selected].votes = result.data[elem.selected].votes + 1; 
+          });
+          reqPoll.options.forEach((elem) => {
+            let percent = (100*result.data[elem.text].votes)/result.t;
+            result.data[elem.text].vote_percent = percent.toFixed(2);
+          });
+          res.status(200).json({ error: false, result: result });
+        }
+      });
+    } else {
+      res.status(401).json({ error: true });  
+    }
+  } else {
+    res.status(401).json({ error: true });
+  }
 });
