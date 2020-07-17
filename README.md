@@ -20,5 +20,5 @@ $ cd vot-server && node users.js # start node.js server
 ![vot](./public/5.png)
 ## Generate link for the poll and share it with voters
 ![vot](./public/7.png)
-## Pollster can results in real-time
+## Pollster can view results in real-time
 ![vot](./public/8.png)
