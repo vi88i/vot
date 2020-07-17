@@ -32,6 +32,9 @@ const pollSchema = Joi.object({
   question: Joi.string()
     .pattern(/^[0-9a-zA-Z? ]{3,250}$/)
     .required(),
+  deadline: Joi.string()
+    .pattern(/^[0-9-]{10}$/)
+    .required(),
   options: Joi.array()
     .min(2)
     .items(

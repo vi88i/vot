@@ -59,6 +59,20 @@ app.listen(process.env.PORT, (err) => {
   console.log(`Listening on port ${process.env.PORT}`);  
 });
 
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
+
+http.listen(process.env.SOCKET_PORT, () => {
+  console.log(`Socket listening on ${process.env.SOCKET_PORT}`);
+});
+
+io.on('connection', (socket) => {
+  console.log('User connected');
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
+  });
+});
+
 mongoose.connect(process.env.MONGODB_URL, { 
   useNewUrlParser: true, 
   useUnifiedTopology: true,
@@ -186,15 +200,20 @@ app.post('/users/submitPoll', validateSID, async (req, res) => {
     if (anotherQuestion) {
       res.status(200).json({ error: true, auth: true, msg: 'Question already asked!' });
     } else {
-      const newPoll = new poll({ pollster: req.session.name, ...req.body, ballot: [] });
-      newPoll.save((err) => {
-        if (err) {
-          res.status(500).json({ error: true, auth: true, msg: 'Something went wrong!' });
-          console.log(err);
-        } else {  
-          res.status(200).json({ error: false, auth: true });
-        }
-      });
+      const deadline_time = new Date(req.body.deadline);
+      if (deadline_time.getTime() > Date.now()) {
+        const newPoll = new poll({ pollster: req.session.name, ...req.body, ballot: [] });
+        newPoll.save((err) => {
+          if (err) {
+            res.status(500).json({ error: true, auth: true, msg: 'Something went wrong!' });
+            console.log(err);
+          } else {  
+            res.status(200).json({ error: false, auth: true });
+          }
+        });
+      } else {
+        res.status(400).json({ error: true, auth: true, msg: 'Invalid date!' });
+      }
     }
   }
 });
@@ -231,6 +250,7 @@ app.post('/users/viewPoll', validateSID, async (req, res) => {
   const reqPoll = await poll.findOne({ pollster: req.session.name, _id: req.body.id });
   if (reqPoll) {
     let result = {
+      deadline: reqPoll.deadline,
       question: reqPoll.question,
       data: {},
       t: 0,
@@ -258,14 +278,20 @@ app.post('/users/viewPoll', validateSID, async (req, res) => {
 app.post('/loadPoll', async (req, res) => {
   const reqPoll = await poll.findOne({ _id: req.body.id });
   if (reqPoll) {
-    res.status(200).json({ 
-      error: false, 
-      poll: {
-        pollster: reqPoll.pollster,
-        question: reqPoll.question,
-        options: reqPoll.options,
-      }, 
-    });
+    const deadline_time = new Date(reqPoll.deadline);
+    if (deadline_time.getTime() > Date.now()) {
+      res.status(200).json({ 
+        error: false, 
+        poll: {
+          deadline: reqPoll.deadline,
+          pollster: reqPoll.pollster,
+          question: reqPoll.question,
+          options: reqPoll.options,
+        }, 
+      });
+    } else {
+      res.status(404).json({ error: true });
+    }   
   } else {
     res.status(200).json({ error: true });
   }
@@ -278,39 +304,47 @@ app.post('/castPoll', async (req, res) => {
     'ballot.voter_id': { '$nin': voter_id },
   });
   if (reqPoll) {
-    let validOption = false;
-    // array methods are blocking, so this is fine
-    reqPoll.options.forEach((elem) => {
-      validOption = validOption || (elem.text === selected);
-    });
-    if (validOption) {
-      reqPoll.ballot.push({ voter_id: voter_id, selected: selected });
-      reqPoll.save((err) => {
-        if (err) {
-          res.status(500).json({ error: true });
-          // console.log(err);
-        } else {
-          let result = {
-            data: {},
-            t: 0,
-          };
-          reqPoll.options.forEach((elem) => {
-            result.data[elem.text] = {
-              votes: 0,
-              vote_percent: 0,
-            };
-          });
-          reqPoll.ballot.forEach((elem) => {
-            result.t = result.t + 1; 
-            result.data[elem.selected].votes = result.data[elem.selected].votes + 1; 
-          });
-          reqPoll.options.forEach((elem) => {
-            let percent = (100*result.data[elem.text].votes)/result.t;
-            result.data[elem.text].vote_percent = percent.toFixed(2);
-          });
-          res.status(200).json({ error: false, result: result });
-        }
+    const deadline_time = new Date(reqPoll.deadline);
+    if (deadline_time.getTime() > Date.now()) {
+      let validOption = false;
+      // array methods are blocking, so this is fine
+      reqPoll.options.forEach((elem) => {
+        validOption = validOption || (elem.text === selected);
       });
+      if (validOption) {
+        reqPoll.ballot.push({ voter_id: voter_id, selected: selected });
+        reqPoll.save((err) => {
+          if (err) {
+            res.status(500).json({ error: true });
+            // console.log(err);
+          } else {
+            let result = {
+              deadline: reqPoll.deadline,
+              question: reqPoll.question,
+              data: {},
+              t: 0,
+            };
+            reqPoll.options.forEach((elem) => {
+              result.data[elem.text] = {
+                votes: 0,
+                vote_percent: 0,
+              };
+            });
+            reqPoll.ballot.forEach((elem) => {
+              result.t = result.t + 1; 
+              result.data[elem.selected].votes = result.data[elem.selected].votes + 1; 
+            });
+            reqPoll.options.forEach((elem) => {
+              let percent = (100*result.data[elem.text].votes)/result.t;
+              result.data[elem.text].vote_percent = percent.toFixed(2);
+            });
+            io.emit(reqPoll._id, JSON.stringify(result));
+            res.status(200).json({ error: false, result: result });
+          }
+        });
+      } else {
+        res.status(404).json({ error: true });
+      }   
     } else {
       res.status(401).json({ error: true });  
     }

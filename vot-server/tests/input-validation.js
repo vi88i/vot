@@ -88,6 +88,7 @@ describe('JSON input validation', () => {
       const { error } = pollSchema.validate({ 
         question: 'Who am I?',
         options: [{ text: '123', index: 0 }, { text: '124', index: 1 }], 
+        deadline: '2020-07-17',
       });
       assert.isUndefined(error, error);
       done();
@@ -96,6 +97,7 @@ describe('JSON input validation', () => {
       const { error } = pollSchema.validate({ 
         question: 'Who am I<script>alert(document.cookie)</script>?',
         options: [{ text: '123', index: 0 }, { text: '124', index: 1 }], 
+        deadline: '2020-07-17',
       });
       assert.isDefined(error, 'Failure case passed');
       done();
@@ -103,10 +105,20 @@ describe('JSON input validation', () => {
     it("should fail, min elements is less than 2", (done) => {
       const { error } = pollSchema.validate({ 
         question: 'Who am I?',
-        options: [{ text: '123', index: 0 }], 
+        options: [{ text: '123', index: 0 }],
+        deadline: '2020-07-17', 
       });
       assert.isDefined(error, 'Failure case passed');
       done();
-    });                        
+    });
+    it("should fail, wrong date schema", (done) => {
+      const { error } = pollSchema.validate({ 
+        question: 'Who am I?',
+        options: [{ text: '123', index: 0 }],
+        deadline: '2020-7-7', 
+      });
+      assert.isDefined(error, 'Failure case passed');
+      done();
+    });                            
   });  
 });

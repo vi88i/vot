@@ -56,6 +56,11 @@ const pollSchema = new Schema({
     trim: true,
     required: true,
   },
+  deadline: {
+    type: 'String',
+    trim: true,
+    required: true,    
+  },
   options: [pollOptionSchema],
   ballot: [voteSchema],
 });

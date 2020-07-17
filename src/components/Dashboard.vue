@@ -84,7 +84,32 @@
                   
                   <div class="text-center">
                     <v-btn class="ma-2" color="primary" @click="addOption()">Add option</v-btn> 
-                  </div>                           
+                  </div>
+
+                  <v-row>
+                    <v-col cols="12">
+                      <v-text-field  
+                        label="Set deadline"
+                        v-model="date"
+                        @focus="date_dialog = true"
+                        required
+                      >
+                      </v-text-field>
+                    </v-col>                    
+                  </v-row>
+
+                  <v-dialog v-model="date_dialog" persistent max-width="600px">
+                      <v-row class="justify-center">
+                        <v-date-picker
+                          v-model="date"
+                          class="mt-2"
+                        >
+                          <v-spacer></v-spacer>
+                          <v-btn color="blue darken-1" text @click="date_dialog = false">Select</v-btn>
+                        </v-date-picker>
+                      </v-row>
+                  </v-dialog>
+
               </v-container>
             </v-card-text>
             <v-card-actions>
@@ -101,6 +126,12 @@
     <v-divider></v-divider>
 
     <v-container class="fill-height" fluid>
+      <v-row v-if="polls.length === 0" class="justify-center" dense>          
+        <v-col cols="4">
+          <h1>No polls created. Use create button to get started!</h1>           
+        </v-col>
+      </v-row>
+
       <v-row v-if="loader" class="justify-center" dense>
         <v-progress-circular
           :size="70"
@@ -152,7 +183,8 @@
             </v-card-actions>                    
           </v-card>
         </v-dialog>        
-      </v-row>      
+      </v-row>
+
     </v-container>      
 
     <v-footer
@@ -175,8 +207,10 @@ export default {
   data() {
     return {
       delete_icon: 'mdi-delete-circle',
+      date: null,
       poll_dialog: false,
       share_dialog: false,
+      date_dialog: false,
       question_id: '',
       option_text: '',
       loader: false,
@@ -205,6 +239,8 @@ export default {
           this.$router.push({ name: 'home' });
         } else {
           this.fetchPolls();
+          let cur_date = new Date();
+          this.date = `${cur_date.getFullYear()}-${(cur_date.getMonth() + 1 > 9 ? cur_date.getMonth() + 1 : '0' + (cur_date.getMonth() + 1))}-${cur_date.getDate() > 9 ? cur_date.getDate() : '0' + cur_date.getDate()}`;
         }    
       })
       .catch((err) => {
@@ -212,6 +248,9 @@ export default {
       });    
   },
   methods: {
+    allowedDates(val) {
+      return parseInt(val.split('-')[2], 10) % 2 === 0;
+    },
     fetchPolls() {
       fetch('http://localhost:3000/users/listAllPolls', {
         method: 'POST',
@@ -265,7 +304,7 @@ export default {
       this.options = [];
     },
     handleSave() {
-      let data = { question: this.question, options: this.options };
+      let data = { question: this.question, options: this.options, deadline: this.date };
       if (data.question.length === 0) {
         this.error.error = true;
         this.error.msg = 'Question field is required';

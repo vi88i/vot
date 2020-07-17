@@ -15,9 +15,14 @@
             v-if="showQuestion"       
             dark
           >
-            <v-card-title>
+            <v-card-title class="justify-center">
               <span class="headline"> {{ poll.question === '' ? "Poll doesn't exists" : poll.question }} </span>
             </v-card-title>
+            <v-card-subtitle>
+              <v-row class="justify-center">
+                <strong>{{ time }}</strong>
+              </v-row>
+            </v-card-subtitle>
             <v-card-text>
               <v-container>
                 <v-row>
@@ -91,6 +96,8 @@ export default {
       selected: '',
       pollster: '',
       voter_id: '',
+      time: '--:--:--',
+      deadline: 0,
       showQuestion: true,
       result: {},
       poll: {
@@ -114,9 +121,12 @@ export default {
         if (res.error == true) {
           this.$router.push({ name: 'error' });
         } else {
+          let date = new Date(res.poll.deadline);
+          this.deadline = date.getTime() - Date.now();
           this.selected = res.poll.options[0].text;
           this.pollster = res.poll.pollster;
           this.poll = Object.assign({}, res.poll);
+          this.startTimer();
         }     
       })
       .catch((err) => {
@@ -125,26 +135,37 @@ export default {
   },
   methods: {
     submitVote() {
-    fetch('http://localhost:3000/castPoll', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ id: this.$route.params.id, selected: this.selected, voter_id: this.voter_id }),
-    })
-      .then((res) => res.json())
-      .then((res) => {
-        console.log(res);
-        this.loader = false;
-        if (res.error === true) {
-          this.$router.push({ name: 'error' });
-        } else {
-          this.showQuestion = false;
-          this.result = Object.assign({}, res.result);
-        }
+      fetch('http://localhost:3000/castPoll', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ id: this.$route.params.id, selected: this.selected, voter_id: this.voter_id }),
       })
-      .catch((err) => {
-        console.log(err);
-      });
+        .then((res) => res.json())
+        .then((res) => {
+          this.loader = false;
+          if (res.error === true) {
+            this.$router.push({ name: 'error' });
+          } else {
+            this.showQuestion = false;
+            this.result = Object.assign({}, res.result);
+          }
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
+    startTimer() {
+      let me = this;
+      setInterval(() => {
+        let d = new Date(me.deadline);
+        if (d.getTime() > 0) {
+          me.time = `${d.getHours() > 9 ? d.getHours() + ' hours ' : '0' + d.getHours() + ' hours '} - ${d.getMinutes() > 9 ? d.getMinutes() + ' minutes ' : '0' + d.getMinutes() + ' minutes '} - ${d.getSeconds() > 9 ? d.getSeconds() + ' seconds ': '0' + d.getSeconds() + ' seconds '}`;
+          me.deadline = me.deadline - 1000;
+        } else {
+          me.time = "This poll is closed, your answer won't be considered!";
+        }
+      }, 1000);
     },
   },
 }

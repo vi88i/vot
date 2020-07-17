@@ -6,9 +6,14 @@
           <v-card       
             dark
           >
-            <v-card-title>
+            <v-card-title class="justify-center">
               <span class="headline"> {{ result.question }} </span>
             </v-card-title>
+            <v-card-subtitle>
+              <v-row class="justify-center">
+                <strong>{{ time }}</strong>
+              </v-row>
+            </v-card-subtitle>            
             <v-card-text>
               <v-container>
                 <v-row v-for="(data, option) in result.data" :key="option">
@@ -49,12 +54,16 @@
 </template>
 
 <script>
+import io from 'socket.io-client';
+
 export default {
   name: 'PollView',
   data() {
     return {
       loader: false,
       result: {},
+      time: '--:--:--',
+      deadline: 0,      
     }
   },
   mounted() {
@@ -73,6 +82,7 @@ export default {
           this.$router.push({ name: 'home' });
         } else {
           this.fetchPoll();
+          this.startMonitor();
         }    
       })
       .catch((err) => {
@@ -96,12 +106,35 @@ export default {
           if (res.error == true) {
             this.$router.push({ name: 'error' });
           } else {
+            let date = new Date(res.result.deadline);
+            this.deadline = date.getTime() - Date.now();            
             this.result = Object.assign({}, res.result);
+            this.startTimer();
           }
         })
         .catch((err) => {
           console.log(err);
         });      
+    },    
+    startMonitor() {
+      let me = this;
+      let socket = io.connect("http://localhost:5000");
+      socket.on(this.$route.params.id, (packet) => {
+        let res = JSON.parse(packet);
+        me.result = Object.assign({}, res);
+      });
+    },
+    startTimer() {
+      let me = this;
+      setInterval(() => {
+        let d = new Date(me.deadline);
+        if (d.getTime() > 0) {
+          me.time = `${d.getHours() > 9 ? d.getHours() + ' hours ' : '0' + d.getHours() + ' hours '} - ${d.getMinutes() > 9 ? d.getMinutes() + ' minutes ' : '0' + d.getMinutes() + ' minutes '} - ${d.getSeconds() > 9 ? d.getSeconds() + ' seconds ': '0' + d.getSeconds() + ' seconds '}`;
+          me.deadline = me.deadline - 1000;
+        } else {
+          me.time = "This poll is closed, your answer won't be considered!";
+        }
+      }, 1000);
     },    
   },
 }
